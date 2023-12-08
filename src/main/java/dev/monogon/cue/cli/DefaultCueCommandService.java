@@ -7,8 +7,7 @@ import com.intellij.execution.process.CapturingProcessHandler;
 import com.intellij.execution.process.ProcessOutput;
 import com.intellij.openapi.progress.ProgressManager;
 import dev.monogon.cue.Messages;
-import dev.monogon.cue.cli.CueCommandService;
-import dev.monogon.cue.settings.CueLocalSettingsService;
+import dev.monogon.cue.settings.CueSettingsState;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 public class DefaultCueCommandService implements CueCommandService {
     @Override
     public @Nullable String format(@NotNull String content, long timeout, TimeUnit unit) throws ExecutionException {
-        String cuePath = CueLocalSettingsService.getSettings().getCueExecutablePath();
+        String cuePath = CueSettingsState.getInstance().getCueExecutablePath();
         if (cuePath == null || cuePath.isEmpty()) {
             var envPath = PathEnvironmentVariableUtil.findInPath("cue");
             if (envPath == null || !envPath.canExecute()) {

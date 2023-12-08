@@ -14,7 +14,7 @@ import com.intellij.psi.PsiFile;
 import dev.monogon.cue.Messages;
 import dev.monogon.cue.lang.CueLanguage;
 import dev.monogon.cue.lang.psi.CueFile;
-import dev.monogon.cue.settings.CueLocalSettingsService;
+import dev.monogon.cue.settings.CueSettingsState;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -22,7 +22,9 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 
 public final class CueExternalFormatter extends AsyncDocumentFormattingService {
@@ -30,7 +32,7 @@ public final class CueExternalFormatter extends AsyncDocumentFormattingService {
 
     private String findCueBin() throws ExecutionException {
         // Check the configured binary
-        String cuePath = CueLocalSettingsService.getSettings().getCueExecutablePath();
+        String cuePath = CueSettingsState.getInstance().getCueExecutablePath();
         if (cuePath != null && !cuePath.isEmpty()) {
             if (!Files.isExecutable(Paths.get(cuePath))) {
                 throw new ExecutionException(Messages.get("formatter.userPathNotFound"));
@@ -102,7 +104,19 @@ public final class CueExternalFormatter extends AsyncDocumentFormattingService {
         }
 
         try {
-            GeneralCommandLine commandLine = new GeneralCommandLine(cuePath, "fmt", "-");
+
+            var args = new ArrayList<String>();
+            args.add(cuePath);
+            args.add("fmt");
+            if (CueSettingsState.getInstance().getFormatIgnoreErrors()) {
+                args.add("-i");
+            }
+            if (CueSettingsState.getInstance().getFormatSimplifyOutput()) {
+                args.add("-s");
+            }
+            args.add("-");
+
+            GeneralCommandLine commandLine = new GeneralCommandLine(args);
             commandLine.withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE);
             commandLine.withCharset(StandardCharsets.UTF_8);
             commandLine.withInput(ioFile);
