@@ -4,13 +4,13 @@ plugins { // Java support
     id("java")
 
     // gradle-intellij-plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin
-    id("org.jetbrains.intellij") version "1.15.0"
+    id("org.jetbrains.intellij") version "1.13.3"
 
     // gradle-changelog-plugin - read more: https://github.com/JetBrains/gradle-changelog-plugin
     id("org.jetbrains.changelog") version "1.3.1"
 
     // gradle-grammarkit-plugin - read more: https://github.com/JetBrains/gradle-grammar-kit-plugin
-    id("org.jetbrains.grammarkit") version "2021.2.1"
+    id("org.jetbrains.grammarkit") version "2022.3.2"
 }
 
 // Import variables from gradle.properties file
@@ -25,6 +25,10 @@ val platformType: String by project
 val platformVersion: String by project
 val platformPlugins: String by project
 val platformDownloadSources: String by project
+
+val grammarkitJflexRelease: String by project
+val grammarkitRelease: String by project
+val grammarkitIntellijRelease: String by project
 
 group = pluginGroup
 version = pluginVersion
@@ -59,18 +63,20 @@ changelog {
     groups.set(listOf("Added", "Changed", "Fixed"))
 }
 
+grammarKit {
+    jflexRelease.set(grammarkitJflexRelease)
+    grammarKitRelease.set(grammarkitRelease)
+    intellijRelease.set(grammarkitIntellijRelease)
+}
+
 tasks { // disable building searchable options to speed up build, we currently don't settings UI
     buildSearchableOptions {
         enabled = false
     }
 
     withType<JavaCompile> {
-        val jdkVersion = when {
-            platformVersion.startsWith("2022.") -> "11"
-            else -> "17"
-        }
-        sourceCompatibility = jdkVersion
-        targetCompatibility = jdkVersion
+        sourceCompatibility = "17"
+        targetCompatibility = "17"
     }
 
     withType<Test> {
@@ -114,7 +120,7 @@ tasks { // disable building searchable options to speed up build, we currently d
     }
 
     generateLexer {
-        source.set("src/grammar/cue.flex")
+        sourceFile.set(layout.projectDirectory.file("src/grammar/cue.flex"))
         targetDir.set("src/main/java-gen/dev/monogon/cue/lang/lexer")
         targetClass.set("_CueLexerGen")
         purgeOldFiles.set(true)
