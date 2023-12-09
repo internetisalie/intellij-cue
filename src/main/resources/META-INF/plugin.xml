@@ -7,6 +7,7 @@
     <!-- Product and plugin compatibility requirements -->
     <!-- https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
     <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.terminal</depends>
     <depends optional="true" config-file="intellilang.xml">org.intellij.intelliLang</depends>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -44,6 +45,8 @@
         <formattingService implementation="dev.monogon.cue.lang.editor.formatter.CueExternalFormatter"/>
         <applicationService serviceInterface="dev.monogon.cue.cli.CueCommandService"
                             serviceImplementation="dev.monogon.cue.cli.DefaultCueCommandService"/>
+        <applicationService serviceInterface="dev.monogon.cue.cli.CueCommandFactory"
+                            serviceImplementation="dev.monogon.cue.cli.DefaultCueCommandFactory"/>
 
         <applicationConfigurable
                 groupId="language"
@@ -54,4 +57,33 @@
 
         <notificationGroup id="CUE" displayType="BALLOON" key="lang.displayName"/>
     </extensions>
+
+    <actions>
+        <group id="dev.monogon.cue.action.CueEditorDefaultActionGroup"
+               class="dev.monogon.cue.action.CueDefaultActionGroup"
+               popup="true">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <action id="dev.monogon.cue.action.CueVetFileEditorAction"
+                    class="dev.monogon.cue.action.CueVetAction"
+                    text="CUE Vet File" />
+        </group>
+        <group id="dev.monogon.cue.action.CueToolsDefaultActionGroup"
+               class="dev.monogon.cue.action.CueDefaultActionGroup"
+               popup="true">
+
+            <add-to-group group-id="ToolsMenu" anchor="last" />
+            <action id="dev.monogon.cue.action.CueVetFileToolsAction"
+                    class="dev.monogon.cue.action.CueVetAction" />
+            <action id="dev.monogon.cue.action.CueVetProjectToolsAction"
+                    class="dev.monogon.cue.action.CueVetProjectAction" />
+        </group>
+        <group id="dev.monogon.cue.action.CueProjectDefaultActionGroup"
+               class="dev.monogon.cue.action.CueDefaultActionGroup"
+               popup="true">
+
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            <action id="dev.monogon.cue.action.CueVetProjectAction"
+                    class="dev.monogon.cue.action.CueVetAction" />
+        </group>
+    </actions>
 </idea-plugin>

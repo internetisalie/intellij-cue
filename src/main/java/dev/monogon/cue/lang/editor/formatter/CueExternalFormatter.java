@@ -2,7 +2,6 @@ package dev.monogon.cue.lang.editor.formatter;
 
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.configurations.GeneralCommandLine;
-import com.intellij.execution.configurations.PathEnvironmentVariableUtil;
 import com.intellij.execution.process.CapturingProcessAdapter;
 import com.intellij.execution.process.OSProcessHandler;
 import com.intellij.execution.process.ProcessEvent;
@@ -12,6 +11,8 @@ import com.intellij.notification.NotificationType;
 import com.intellij.openapi.util.NlsSafe;
 import com.intellij.psi.PsiFile;
 import dev.monogon.cue.Messages;
+import dev.monogon.cue.Notifications;
+import dev.monogon.cue.cli.CueCommandFactory;
 import dev.monogon.cue.lang.CueLanguage;
 import dev.monogon.cue.lang.psi.CueFile;
 import dev.monogon.cue.settings.CueSettingsState;
@@ -19,73 +20,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Set;
 
 public final class CueExternalFormatter extends AsyncDocumentFormattingService {
     private static final Set<Feature> FEATURES = EnumSet.noneOf(Feature.class);
-
-    private String findCueBin() throws ExecutionException {
-        // Check the configured binary
-        String cuePath = CueSettingsState.getInstance().getCueExecutablePath();
-        if (cuePath != null && !cuePath.isEmpty()) {
-            if (!Files.isExecutable(Paths.get(cuePath))) {
-                throw new ExecutionException(Messages.get("formatter.userPathNotFound"));
-            }
-        }
-
-        // Check PATH
-        if (cuePath == null || cuePath.isEmpty()) {
-            var envPath = PathEnvironmentVariableUtil.findInPath("cue");
-            if (envPath != null && envPath.canExecute()) {
-                cuePath = envPath.getAbsolutePath();
-            }
-        }
-
-        // Check GOBIN
-        if (cuePath == null || cuePath.isEmpty()) {
-            var goBinPath = System.getenv("GOBIN");
-            if (goBinPath != null && !goBinPath.isEmpty()) {
-                var goBinCueFile = Paths.get(goBinPath, "cue").toFile();
-                if (goBinCueFile.canExecute()) {
-                    cuePath = goBinCueFile.getAbsolutePath();
-                }
-            }
-        }
-
-        // Check GOPATH/bin
-        if (cuePath == null || cuePath.isEmpty()) {
-            var goPath = System.getenv("GOPATH");
-            if (goPath != null && !goPath.isEmpty()) {
-                var goBinCueFile = Paths.get(goPath, "bin", "cue").toFile();
-                if (goBinCueFile.canExecute()) {
-                    cuePath = goBinCueFile.getAbsolutePath();
-                }
-            }
-        }
-
-        // Check HOME/go/bin
-        if (cuePath == null || cuePath.isEmpty()) {
-            var homePath = System.getenv("HOME");
-            if (homePath != null && !homePath.isEmpty()) {
-                var homeGoBinCueFile = Paths.get(homePath, "go", "bin", "cue").toFile();
-                if (homeGoBinCueFile.canExecute()) {
-                    cuePath = homeGoBinCueFile.getAbsolutePath();
-                }
-            }
-        }
-
-        if (cuePath == null || cuePath.isEmpty()) {
-            throw new ExecutionException(Messages.get("formatter.exeNotFound"));
-        }
-
-        return cuePath;
-    }
 
     @Nullable
     @Override
@@ -93,35 +33,27 @@ public final class CueExternalFormatter extends AsyncDocumentFormattingService {
         File ioFile = request.getIOFile();
         if (ioFile == null) return null;
 
-        String cuePath;
+        var args = new ArrayList<String>();
+        if (CueSettingsState.getInstance().getFormatIgnoreErrors()) {
+            args.add("-i");
+        }
+        if (CueSettingsState.getInstance().getFormatSimplifyOutput()) {
+            args.add("-s");
+        }
+        args.add("-");
+
+        GeneralCommandLine command;
         try {
-            cuePath = findCueBin();
+            command = CueCommandFactory.getInstance().createCueFormatCommand(args);
         } catch (ExecutionException e) {
-            CueLanguage.NOTIFICATION_GROUP
-                .createNotification(e.getMessage(), NotificationType.ERROR)
-                .notify(request.getContext().getProject());
+            Notifications.error(request.getContext().getProject(), e.getMessage());
             return null;
         }
 
+        command.withInput(ioFile);
+
         try {
-
-            var args = new ArrayList<String>();
-            args.add(cuePath);
-            args.add("fmt");
-            if (CueSettingsState.getInstance().getFormatIgnoreErrors()) {
-                args.add("-i");
-            }
-            if (CueSettingsState.getInstance().getFormatSimplifyOutput()) {
-                args.add("-s");
-            }
-            args.add("-");
-
-            GeneralCommandLine commandLine = new GeneralCommandLine(args);
-            commandLine.withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE);
-            commandLine.withCharset(StandardCharsets.UTF_8);
-            commandLine.withInput(ioFile);
-
-            OSProcessHandler handler = new OSProcessHandler(commandLine.withCharset(StandardCharsets.UTF_8));
+            OSProcessHandler handler = new OSProcessHandler(command);
             return new FormattingTask() {
                 @Override
                 public void run() {
@@ -160,7 +92,7 @@ public final class CueExternalFormatter extends AsyncDocumentFormattingService {
 
     @Override
     protected @NotNull String getNotificationGroupId() {
-        return CueLanguage.NOTIFICATION_GROUP_ID;
+        return Notifications.NOTIFICATION_GROUP_ID;
     }
 
     @Override
